@@ -2,6 +2,7 @@
 #include <shlobj.h>     // For IShellExtInit and IContextMenu
 #include <set>
 #include <string>
+#include "FileProcessor.h"
 
 class ContextMenu : public IShellExtInit, public IContextMenu 
 {
@@ -30,7 +31,7 @@ private:
     long m_cRef;
 
     // Selected files.
-    std::set< std::wstring > selectedFiles;
+    FileProcessor selectedFiles;
 
     // The method that handles the "display" verb.
     void OnVerbDisplayFileName(HWND hWnd);

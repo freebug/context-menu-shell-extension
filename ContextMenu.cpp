@@ -18,19 +18,7 @@ ContextMenu::~ContextMenu(void)
 
 void ContextMenu::OnVerbDisplayFileName(HWND hWnd)
 {
-	std::wstring message;
-
-	//constructing message
-	message.append(L"File list:\n\n");
-	for each (std::wstring filename in selectedFiles)
-	{
-		size_t delim = filename.find_last_of(L"\\");
-		if( std::wstring::npos != delim )
-			filename = filename.substr(delim+1);
-		message.append(filename).append(L"\n");
-	}
-
-	MessageBox(hWnd, message.c_str(), m_pszMenuText, MB_OK);
+	MessageBox(hWnd, selectedFiles.dumpFileInfo().c_str(), m_pszMenuText, MB_OK);
 }
 
 IFACEMETHODIMP ContextMenu::QueryInterface(REFIID riid, void **ppv)
@@ -85,7 +73,7 @@ IFACEMETHODIMP ContextMenu::Initialize(LPCITEMIDLIST pidlFolder, LPDATAOBJECT pD
 			for(UINT i = 0; i < nFiles; i++) 
 			{
 				DragQueryFile(hDrop, i, buf, ARRAYSIZE(buf));
-				selectedFiles.insert(buf);
+				selectedFiles.addFile(buf);
 			}
         }
 		GlobalUnlock(stm.hGlobal);
