@@ -3,11 +3,13 @@
 
 FileProcessor::FileProcessor(void)
 {
+	InitializeCriticalSection(&cs);
 }
 
 
 FileProcessor::~FileProcessor(void)
 {
+	DeleteCriticalSection(&cs);
 }
 
 // interface to add files into internal filelist
@@ -18,18 +20,19 @@ void FileProcessor::addFile(wstring filename)
 
 const wstring FileProcessor::dumpFileInfo()
 {
-	
-	//constructing message with information about every file
-	
-	wstring message;
-	message.append(L"File list:\n(File Name | Size | Creation Date | Simple Checksum)\n\n");
-	getFileInfo();
-	for each (std::wstring filename in fileList)
-	{
 
+	//constructing message with information about every file
+
+	wstring message;
+	message.append(L"File list(first 20 entries if too long to display):\n(File Name | Size | Creation Date | Simple Checksum)\n\n");
+	getFileInfo();
+	std::set<wstring>::iterator first = fileList.begin();
+	for(std::set<wstring>::iterator i = fileList.begin(); distance(first,i) != 20 && i != fileList.end()  ; ++i)
+	{
+		wstring filename = *i;
 		message.append(fileDateSize.at(filename))
-			   .append(fileCheckSum.at(filename))
-			   .append(L"\n");
+		.append(fileCheckSum.at(filename))
+		.append(L"\n");
 	}
 
 	return message;
@@ -37,7 +40,7 @@ const wstring FileProcessor::dumpFileInfo()
 
 void FileProcessor::getFileInfo()
 {
-	
+
 	// Gathering date and size information about every file from WIN32_FILE_ATTRIBUTE_DATA structure
 
 	for each (std::wstring filename in fileList)
@@ -65,7 +68,7 @@ void FileProcessor::getFileInfo()
 
 	}
 	//waiting for threads to end
-	WaitForMultipleObjects(handleList.size(), &handleList[0], 1, 10000);
+	WaitForMultipleObjects(handleList.size(), &handleList[0], 1, INFINITE);
 
 }
 
@@ -74,10 +77,10 @@ wstring FileProcessor::getFileSizeDate(WIN32_FILE_ATTRIBUTE_DATA fileAttrData)
 	wstringstream sstream;
 
 	// file size
-	wchar_t buffer[50];
-	StrFormatByteSize(fileAttrData.nFileSizeLow, buffer, 50);
-	sstream << buffer << L" | ";
-	
+	// wchar_t buffer[50];
+	//StrFormatByteSize(fileAttrData.nFileSizeLow, buffer, 50);
+	//sstream << buffer << L" | ";
+
 	// file creation date
 	SYSTEMTIME creationTime;
 	FileTimeToSystemTime(&fileAttrData.ftCreationTime, &creationTime);
@@ -91,7 +94,7 @@ unsigned __stdcall FileProcessor::getCheckSum(void* args)
 	wstring filename;
 	pair<wstring, FileProcessor*> *params;
 	params = static_cast< pair<wstring, FileProcessor*>* >(args);
-	
+
 	//simple checksum
 	DWORD checksum = 0;
 	ifstream file(params->first);
@@ -100,7 +103,7 @@ unsigned __stdcall FileProcessor::getCheckSum(void* args)
 	while (! file.eof() )
 	{
 		getline (file, line);
-		
+
 		for(string::iterator i = line.begin(); i != line.end(); i++)
 		{
 			checksum += *i;
@@ -108,9 +111,9 @@ unsigned __stdcall FileProcessor::getCheckSum(void* args)
 	}
 
 	file.close();
-
+	EnterCriticalSection(&cs);
 	params->second->saveCheckSum(params->first, checksum);
-	
+	LeaveCriticalSection(&cs);
 	return 0;
 }
 

@@ -9,7 +9,10 @@
 #include <Shlwapi.h>
 using namespace std;
 
+static CRITICAL_SECTION cs;
+
 #pragma once
+
 class FileProcessor
 {
 public:
@@ -18,6 +21,7 @@ public:
 
 	void addFile(wstring);
 	const wstring dumpFileInfo();
+	
 
 private:
 	void getFileInfo();
@@ -32,4 +36,3 @@ private:
 
 	vector< HANDLE > handleList; //list of threads
 };
-
