@@ -3,13 +3,14 @@
 #include <vector>
 #include <queue>
 #include <string>
-#include <sstream>
 #include <fstream>
 #include <windows.h>
 #include <Shlwapi.h>
+#pragma comment(lib, "shlwapi.lib")
 
 #include <boost\thread.hpp>
 #include <boost\thread\mutex.hpp>
+#include <boost\lexical_cast.hpp>
 
 using namespace std;
 
@@ -21,14 +22,15 @@ public:
 	FileProcessor(void);
 	~FileProcessor(void);
 
-	void addFile(wstring);
+	//external interface
+	void fileAdd(wstring);
+	int fileCount(); //returns amount of files in internal file list, 0 on empty list
+	int filesClear(); //clears internal file list, returns amount of files removed from list
 	const wstring dumpFileInfo();
-	
 
 private:
-	void getFileInfo();
+	int getFileInfo();
 	wstring getFileSizeDate(WIN32_FILE_ATTRIBUTE_DATA);
-
 
 	void workerCheckSum(queue< wstring > *); // worker function for thread pool
 	unsigned short int maxThreads;

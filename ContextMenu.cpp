@@ -1,7 +1,5 @@
 #include "ContextMenu.h"
 #include <strsafe.h>
-#include <Shlwapi.h>
-#pragma comment(lib, "shlwapi.lib")
 
 extern HINSTANCE g_hInst;
 extern long g_cDllRef;
@@ -73,7 +71,7 @@ IFACEMETHODIMP ContextMenu::Initialize(LPCITEMIDLIST pidlFolder, LPDATAOBJECT pD
 			for(UINT i = 0; i < nFiles; i++) 
 			{
 				DragQueryFile(hDrop, i, buf, ARRAYSIZE(buf));
-				selectedFiles.addFile(buf);
+				selectedFiles.fileAdd(buf);
 			}
         }
 		GlobalUnlock(stm.hGlobal);
