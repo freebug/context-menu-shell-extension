@@ -1,15 +1,17 @@
 #include <set>
 #include <map>
 #include <vector>
+#include <queue>
 #include <string>
 #include <sstream>
 #include <fstream>
 #include <windows.h>
-#include <process.h>
 #include <Shlwapi.h>
-using namespace std;
 
-static CRITICAL_SECTION cs;
+#include <boost\thread.hpp>
+#include <boost\thread\mutex.hpp>
+
+using namespace std;
 
 #pragma once
 
@@ -26,13 +28,16 @@ public:
 private:
 	void getFileInfo();
 	wstring getFileSizeDate(WIN32_FILE_ATTRIBUTE_DATA);
-	static unsigned __stdcall getCheckSum(void*); 
-	void saveCheckSum(wstring, DWORD); // method to save data from static thread
 
 
+	void workerCheckSum(queue< wstring > *); // worker function for thread pool
+	unsigned short int maxThreads;
+	vector< boost::thread > threadList; //list of threads
+	boost::mutex csRead, csWrite;
+
+	queue< wstring > queueCheckSum;
 	set< wstring > fileList; //alphabetically sorted list of files
 	map< wstring, wstring > fileDateSize; //information about files in fileList
 	map< wstring, wstring > fileCheckSum; //map to get information from threads 
 
-	vector< HANDLE > handleList; //list of threads
 };

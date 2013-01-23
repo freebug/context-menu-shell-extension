@@ -3,13 +3,12 @@
 
 FileProcessor::FileProcessor(void)
 {
-	InitializeCriticalSection(&cs);
+	maxThreads = 10;
 }
 
 
 FileProcessor::~FileProcessor(void)
 {
-	DeleteCriticalSection(&cs);
 }
 
 // interface to add files into internal filelist
@@ -59,27 +58,33 @@ void FileProcessor::getFileInfo()
 		info.append(L" | ").append(getFileSizeDate(fileAttrData));
 		fileDateSize.insert( make_pair(filename, info) );
 
-
-		//create a new thread
-		pair<wstring, FileProcessor*> *args = new pair<wstring, FileProcessor*>;
-		args->first = filename;
-		args->second = this;
-		handleList.push_back( (HANDLE)_beginthreadex(0, 0, getCheckSum, args, 0, 0) );
+		//push file into thread pool queue
+		queueCheckSum.push(filename);
 
 	}
-	//waiting for threads to end
-	WaitForMultipleObjects(handleList.size(), &handleList[0], 1, INFINITE);
 
+	//launch thread pool
+	int threadCount = maxThreads;
+	if( queueCheckSum.size() < maxThreads )
+		threadCount = queueCheckSum.size();
+	for(int i = 0; i < threadCount; i++){
+		threadList.push_back(boost::thread(&FileProcessor::workerCheckSum, this, &queueCheckSum));
+	}
+
+	//waiting for threads to end
+	for(int i = 0; i < threadCount; i++){
+		threadList[i].join();
+	}
 }
 
 wstring FileProcessor::getFileSizeDate(WIN32_FILE_ATTRIBUTE_DATA fileAttrData)
 {
 	wstringstream sstream;
 
-	// file size
-	// wchar_t buffer[50];
-	//StrFormatByteSize(fileAttrData.nFileSizeLow, buffer, 50);
-	//sstream << buffer << L" | ";
+	//file size
+	wchar_t buffer[50];
+	StrFormatByteSize(fileAttrData.nFileSizeLow, buffer, 50);
+	sstream << buffer << L" | ";
 
 	// file creation date
 	SYSTEMTIME creationTime;
@@ -89,38 +94,36 @@ wstring FileProcessor::getFileSizeDate(WIN32_FILE_ATTRIBUTE_DATA fileAttrData)
 	return sstream.str();
 }
 
-unsigned __stdcall FileProcessor::getCheckSum(void* args)
+void FileProcessor::workerCheckSum(queue< wstring > * queueCheckSum)
 {
-	wstring filename;
-	pair<wstring, FileProcessor*> *params;
-	params = static_cast< pair<wstring, FileProcessor*>* >(args);
 
-	//simple checksum
-	DWORD checksum = 0;
-	ifstream file(params->first);
-	string line;
+	while(!queueCheckSum->empty()){
 
-	while (! file.eof() )
-	{
-		getline (file, line);
-
-		for(string::iterator i = line.begin(); i != line.end(); i++)
+		csRead.lock();
+			wstring filename = queueCheckSum->front();
+			queueCheckSum->pop();
+		csRead.unlock();
+		
+		//simple checksum
+		DWORD checksum = 0;
+		ifstream file(filename);
+		string line;
+		while (! file.eof() )
 		{
-			checksum += *i;
+			getline (file, line);
+
+			for(string::iterator i = line.begin(); i != line.end(); i++)
+			{
+				checksum += *i;
+			}
 		}
+		file.close();
+
+		csWrite.lock();
+			wstringstream sstream;
+			sstream << checksum;
+			wstring sum = sstream.str();
+			fileCheckSum.insert( make_pair( filename, sum ) );
+		csWrite.unlock();
 	}
-
-	file.close();
-	EnterCriticalSection(&cs);
-	params->second->saveCheckSum(params->first, checksum);
-	LeaveCriticalSection(&cs);
-	return 0;
-}
-
-void FileProcessor::saveCheckSum(wstring filename, DWORD checksum)
-{
-	wstringstream sstream;
-	sstream << checksum;
-	wstring sum = sstream.str();
-	fileCheckSum.insert( make_pair( filename, sum ) );
 }
